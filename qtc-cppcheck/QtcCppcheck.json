@@ -1,0 +1,16 @@
+{
+    "Name" : "QtcCppcheck",
+    "Version" : "4.3.1",
+    "CompatVersion" : "4.3.0",
+    "Experimental" : true,
+    "Category": "Code Analyzer",
+    "Vendor" : "Gres",
+    "Copyright" : "(C) Gres",
+    "License" : "MIT license",
+    "Description" : "Integrates Cppcheck tool into Qt Creator",
+    "Url" : "http://gres.biz/qtc-cppcheck",
+    "Dependencies" : [
+        { "Name" : "Core", "Version" : "4.3.1" },
+        { "Name" : "ProjectExplorer", "Version" : "4.3.1" }
+    ]
+}
