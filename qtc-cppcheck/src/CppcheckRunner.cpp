@@ -35,7 +35,7 @@ namespace
     foreach (const QString& file, files)
     {
       QFileInfo info (file);
-      QString current = QLatin1String ("-I") + info.absolutePath ();
+      QString current = QString (QLatin1String("-I")) + info.absolutePath ();
       if (!paths.contains(current))
       {
         paths << current;
@@ -47,7 +47,7 @@ namespace
 }
 
 CppcheckRunner::CppcheckRunner(Settings *settings, QObject *parent) :
-  QObject(parent), settings_ (settings), showOutput_ (false), showId_(false), futureInterface_ (NULL),
+  QObject(parent), settings_ (settings), showOutput_ (false), futureInterface_ (NULL),
   maxArgumentsLength_ (0)
 {
 #ifdef __linux__
@@ -90,11 +90,8 @@ CppcheckRunner::~CppcheckRunner()
 
 void CppcheckRunner::updateSettings()
 {
-  Core::MessageManager::write(tr("CppcheckRunner::updateSettings()"));
-  qDebug() << "CppcheckRunner::updateSettings";
   Q_ASSERT (settings_ != NULL);
   showOutput_ = settings_->showBinaryOutput ();
-  showId_ = settings_->showId ();
   runArguments_.clear ();
   QString enabled = QLatin1String ("--enable=warning,style,performance,"
                                    "portability,information,missingInclude");
@@ -126,9 +123,7 @@ void CppcheckRunner::updateSettings()
 
 void CppcheckRunner::checkFiles(const QStringList &fileNames)
 {
-    Core::MessageManager::write(tr("CppcheckRunner::checkFiles"));
   Q_ASSERT (!fileNames.isEmpty ());
-
   fileCheckQueue_ += fileNames;
   fileCheckQueue_.removeDuplicates ();
   fileCheckQueue_.sort ();
@@ -151,7 +146,6 @@ void CppcheckRunner::checkFiles(const QStringList &fileNames)
 
 void CppcheckRunner::stopChecking()
 {
-    Core::MessageManager::write(tr("CppcheckRunner::stopChecking()"));
   fileCheckQueue_.clear ();
   if (process_.isOpen ())
   {
@@ -161,8 +155,6 @@ void CppcheckRunner::stopChecking()
 
 void CppcheckRunner::checkQueuedFiles()
 {
-    Core::MessageManager::write(tr("CppcheckRunner::checkQueuedFiles()"));
-
   if (fileCheckQueue_.isEmpty ())
   {
     return;
@@ -179,6 +171,7 @@ void CppcheckRunner::checkQueuedFiles()
   arguments += runArguments_;
 
   QStringList includes = includePaths (fileCheckQueue_);
+  arguments += includes;
   arguments += fileCheckQueue_;
   currentlyCheckingFiles_ = fileCheckQueue_;
   fileCheckQueue_.clear ();
@@ -191,9 +184,6 @@ void CppcheckRunner::checkQueuedFiles()
       if (fileListFile_.open () && includeListFile_.open ()){
         QByteArray filesArg = fileListFileContents_.join (QLatin1String ("\n")).toLocal8Bit ();
         fileListFile_.write (filesArg);
-        for (auto& i: includes) {
-          i = i.mid (2);
-        }
         QByteArray includesArg = includes.join (QLatin1String ("\n")).toLocal8Bit ();
         includeListFile_.write (includesArg);
       }
@@ -205,9 +195,6 @@ void CppcheckRunner::checkQueuedFiles()
     arguments = runArguments_;
     arguments << QString (QLatin1String("--file-list=%1")).arg (fileListFile_.fileName ());
     arguments << QString (QLatin1String("--includes-file=%1")).arg (includeListFile_.fileName ());
-  }
-  else {
-    arguments += includes;
   }
   emit startedChecking (currentlyCheckingFiles_);
   if (showOutput_)
@@ -221,8 +208,6 @@ void CppcheckRunner::checkQueuedFiles()
 
 void CppcheckRunner::readOutput()
 {
-    Core::MessageManager::write(tr("CppcheckRunner::readOutput()"));
-
   if (!showOutput_)
   {
     return;
@@ -252,7 +237,6 @@ void CppcheckRunner::readOutput()
 
 void CppcheckRunner::readError()
 {
-  Core::MessageManager::write(tr("CppcheckRunner::readError()"));
   process_.setReadChannel (QProcess::StandardError);
 
   while (!process_.atEnd ())
@@ -277,14 +261,9 @@ void CppcheckRunner::readError()
     int lineNumber = details.at (NewErrorFieldLine).toInt ();
 //    char type = details.at (ErrorFieldSeverity).at (0).toLatin1 ();
     char type = 'e';
-    QString id = "";
-//    if (showId_)
-//    {
-//      id = details.at (ErrorFieldId);
-//    }
     QString description = line.mid (line.indexOf (details.at (NewErrorFieldMessage))+1);
 
-    emit newTask (type, id, description, file, lineNumber);
+    emit newTask (type,  description, file, lineNumber);
 //    std::cout << "type: " << type << std::endl;
 //    std::cout << "id"  << id.toStdString().c_str() << std::endl;
 //    std::cout << "file: " << file.toStdString().c_str() << std::endl;
@@ -295,7 +274,6 @@ void CppcheckRunner::readError()
 
 void CppcheckRunner::started()
 {
-    Core::MessageManager::write(tr("CppcheckRunner::started()"));
   if (showOutput_)
   {
     Core::MessageManager::write (tr ("Cppcheck started"), Core::MessageManager::Silent);
@@ -313,7 +291,6 @@ void CppcheckRunner::started()
 
 void CppcheckRunner::error(QProcess::ProcessError error)
 {
-  Core::MessageManager::write(tr("CppcheckRunner::error()"));
   Q_UNUSED (error);
   if (showOutput_)
   {
@@ -327,7 +304,6 @@ void CppcheckRunner::error(QProcess::ProcessError error)
 
 void CppcheckRunner::finished(int exitCode, QProcess::ExitStatus exitStatus)
 {
-  Core::MessageManager::write(tr("CppcheckRunner::finished()"));
   Q_UNUSED (exitCode);
   Q_UNUSED (exitStatus);
   if (futureInterface_ != NULL)
