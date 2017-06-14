@@ -111,9 +111,7 @@ void OptionsWidget::applySettings()
   settings_->setCheckUnused (ui->unusedCheckBox->isChecked ());
   settings_->setCheckInconclusive (ui->inconclusiveCheckBox->isChecked ());
   settings_->setCustomParameters (ui->customParametersEdit->text ());
-  settings_->setIgnorePatterns (ui->ignoreEdit->text ().split (","));
   settings_->setShowBinaryOutput (ui->showOutputCheckBox->isChecked ());
-  settings_->setShowId (ui->showIdCheckBox->isChecked ());
   settings_->setPopupOnError (ui->popupOnErrorCheckBox->isChecked ());
   settings_->setPopupOnWarning (ui->popupOnWarningCheckBox->isChecked ());
   settings_->save ();
@@ -130,9 +128,7 @@ void OptionsWidget::initInterface()
   ui->unusedCheckBox->setChecked (settings_->checkUnused ());
   ui->inconclusiveCheckBox->setChecked (settings_->checkInconclusive ());
   ui->customParametersEdit->setText (settings_->customParameters ());
-  ui->ignoreEdit->setText (settings_->ignorePatterns ().join (","));
   ui->showOutputCheckBox->setChecked (settings_->showBinaryOutput ());
-  ui->showIdCheckBox->setChecked (settings_->showId ());
   ui->popupOnErrorCheckBox->setChecked (settings_->popupOnError ());
   ui->popupOnWarningCheckBox->setChecked (settings_->popupOnWarning ());
   getVersion ();

@@ -71,7 +71,7 @@ namespace QtcCppcheck {
 
         // Task handling.
         //! Add task to ProjectExplorer's task lits.
-        void addTask (char type, const QString &, const QString &description,
+        void addTask (char type, const QString &description,
                       const QString &fileName, int line);
         //! Clear self tasks for given files. All tasks if list is empty.
         void clearTasksForFiles (const QStringList& fileList = QStringList ());
@@ -86,8 +86,6 @@ namespace QtcCppcheck {
 
         //! Get checkable files for given node.
         QStringList checkableFiles (const ProjectExplorer::Node* node, bool forceSelected = false) const;
-
-        void updateProjectFileList ();
 
         //! Check given ProjectExplorer::Node.
         void checkNode (const ProjectExplorer::Node* node);

@@ -177,8 +177,7 @@ void CppcheckRunner::checkQueuedFiles()
   fileCheckQueue_.clear ();
 
   int argumentLength = arguments.join (QLatin1Literal (" ")).length ();
-  int includesLength = includes.join (QLatin1Literal (" ")).length ();
-  if (argumentLength + includesLength >= maxArgumentsLength_) {
+  if (argumentLength >= maxArgumentsLength_) {
     if (fileListFileContents_ != currentlyCheckingFiles_) {
       fileListFileContents_ = currentlyCheckingFiles_;
       if (fileListFile_.open () && includeListFile_.open ()){
@@ -197,11 +196,6 @@ void CppcheckRunner::checkQueuedFiles()
     arguments << QString (QLatin1String("--includes-file=%1")).arg (includeListFile_.fileName ());
   }
   emit startedChecking (currentlyCheckingFiles_);
-  if (showOutput_)
-  {
-    Core::MessageManager::write(QString("Starting CppChecker with:%1, %2").arg(binary,arguments.join(" ")), Core::MessageManager::WithFocus);
-  }
-  //process_.start (binary, arguments);
   process_.start (binary, currentlyCheckingFiles_);
 
 }
@@ -259,16 +253,10 @@ void CppcheckRunner::readError()
     }
     QString file = QDir::fromNativeSeparators(details.at (NewErrorFieldFile));
     int lineNumber = details.at (NewErrorFieldLine).toInt ();
-//    char type = details.at (ErrorFieldSeverity).at (0).toLatin1 ();
     char type = 'e';
     QString description = line.mid (line.indexOf (details.at (NewErrorFieldMessage))+1);
 
-    emit newTask (type,  description, file, lineNumber);
-//    std::cout << "type: " << type << std::endl;
-//    std::cout << "id"  << id.toStdString().c_str() << std::endl;
-//    std::cout << "file: " << file.toStdString().c_str() << std::endl;
-//    std::cout << "line: " << lineNumber << std::endl;
-//    std::cout << "description: " << description.toStdString().c_str() << std::endl;
+    emit newTask (type, description, file, lineNumber);
   }
 }
 

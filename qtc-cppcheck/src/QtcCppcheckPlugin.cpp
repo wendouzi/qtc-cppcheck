@@ -1,7 +1,6 @@
 #include <QAction>
 #include <QTranslator>
 #include <QMenu>
-#include <QRegExp>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
@@ -45,23 +44,11 @@ namespace
     return extensions;
   }
 
-  bool isFilteredOut (const QString& name, const QList<QRegExp>& filters)
-  {
-    for (const auto& filter: filters)
-    {
-      if (filter.exactMatch (name))
-      {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  //! Check if node with given name should me checked.
-  bool isFileNodeCheckable (const QString& name)
+  //! Check if node with given type should me checked.
+  bool isFileNodeCheckable (const FileNode* node)
   {
     static QStringList extensions = supportedExtensions ();
-    QFileInfo info (name);
+    QFileInfo info (node->filePath().toString());
     QString extension = info.completeSuffix ();
     return (extensions.contains (extension));
   }
@@ -80,6 +67,7 @@ QtcCppcheckPlugin::~QtcCppcheckPlugin()
   // Delete members
 
   delete settings_;
+  delete runner_;
 }
 
 bool QtcCppcheckPlugin::initialize(const QStringList &arguments, QString *errorString)
@@ -150,8 +138,8 @@ void QtcCppcheckPlugin::initMenus()
 
 void QtcCppcheckPlugin::initConnections()
 {
-  connect (runner_, SIGNAL (newTask (char, const QString &, const QString &, const QString&, int)),
-           SLOT (addTask (char, const QString &, const QString &, const QString&, int)));
+  connect (runner_, SIGNAL (newTask (char, const QString &, const QString&, int)),
+           SLOT (addTask (char, const QString &, const QString&, int)));
   connect (runner_, SIGNAL (startedChecking (const QStringList&)),
            SLOT (clearTasksForFiles (const QStringList&)));
 
@@ -232,10 +220,6 @@ void QtcCppcheckPlugin::checkCurrentDocument()
 
 void QtcCppcheckPlugin::checkActiveProject()
 {
-  if (projectFileList_.isEmpty ())
-  {
-    updateProjectFileList ();
-  }
   if (!projectFileList_.isEmpty ())
   {
     checkFiles (projectFileList_);
@@ -259,54 +243,39 @@ void QtcCppcheckPlugin::checkCurrentNode()
 
 QStringList QtcCppcheckPlugin::checkableFiles(const Node *node, bool forceSelected) const
 {
-  if (!node)
-  {
-    return {};
-  }
-
-  QList<QRegExp> filters;
-  for (const auto& i: settings_->ignorePatterns ())
-  {
-    filters << QRegExp(i, Qt::CaseSensitive, QRegExp::Wildcard);
-  }
-
   QStringList files;
-  const FolderNode* folder = nullptr;
-  if (const auto* container = node->asContainerNode ()) {
-    folder = container->rootProjectNode ();
-  }
-  if (!folder) {
-    folder = node->asFolderNode ();
-  }
-
-  if (folder) {
-    for (const auto* subfolder: folder->folderNodes ())
-    {
-      files += checkableFiles (subfolder, false); // force only selected, not its children
-    }
-    for (const auto* file: folder->fileNodes ())
-    {
-      files += checkableFiles (file, false); // force only selected, not its children
-    }
-  }
-  else if (const auto* file = node->asFileNode ()) {
-    auto name = file->filePath ().toString ();
-    if (forceSelected || (isFileNodeCheckable (name) && !isFilteredOut (name, filters)))
-    {
-      files << name;
-    }
-  }
-
-  return files;
-}
-
-void QtcCppcheckPlugin::updateProjectFileList()
-{
-  if (activeProject_)
+  switch (node->nodeType ())
   {
-    Q_ASSERT (activeProject_->rootProjectNode () != NULL);
-    projectFileList_ = checkableFiles (activeProject_->rootProjectNode ());
+    case FileNodeType:
+    {
+      const FileNode* file = (const FileNode*) node;
+      if (forceSelected || isFileNodeCheckable (file))
+      {
+        files << file->filePath().toString();
+      }
+    }
+      break;
+
+    case ProjectNodeType:
+    case FolderNodeType:
+    case VirtualFolderNodeType:
+    {
+      const FolderNode* folder = (const FolderNode*) node;
+      foreach (const FolderNode* subfolder, folder->subFolderNodes ())
+      {
+        files += checkableFiles (subfolder, false); // force only selected, not its children
+      }
+      foreach (const FileNode* file, folder->fileNodes ())
+      {
+        files += checkableFiles (file, false); // force only selected, not its children
+      }
+    }
+      break;
+
+    default:
+      break;
   }
+  return files;
 }
 
 void QtcCppcheckPlugin::handleStartupProjectChange(Project *project)
@@ -343,7 +312,8 @@ void QtcCppcheckPlugin::handleProjectFileListChanged()
   }
 
   QStringList oldFiles = projectFileList_;
-  updateProjectFileList ();
+  Q_ASSERT (activeProject_->rootProjectNode () != NULL);
+  projectFileList_ = checkableFiles (activeProject_->rootProjectNode ());
   QStringList addedFiles;
   foreach (const QString& file, projectFileList_)
   {
@@ -359,7 +329,7 @@ void QtcCppcheckPlugin::handleProjectFileListChanged()
     clearTasksForFiles (oldFiles); // Removed files.
   }
 
-  if (settings_->checkOnFileAdd () && !addedFiles.isEmpty ())
+  if (settings_->checkOnFileAdd ())
   {
     checkFiles (addedFiles);
   }
@@ -423,10 +393,6 @@ void QtcCppcheckPlugin::checkActiveProjectDocuments(int beginRow, int endRow,
     {
       continue;
     }
-    if (projectFileList_.isEmpty ())
-    {
-      updateProjectFileList ();
-    }
     if (projectFileList_.contains (document->filePath().toString()) &&
         document->isModified () == modifiedFlag)
     {
@@ -440,7 +406,7 @@ void QtcCppcheckPlugin::checkActiveProjectDocuments(int beginRow, int endRow,
   }
 }
 
-void QtcCppcheckPlugin::addTask(char type, const QString &id, const QString &description,
+void QtcCppcheckPlugin::addTask(char type, const QString &description,
                                 const QString &fileName, int line)
 {
   QFileInfo info(fileName);
@@ -450,7 +416,6 @@ void QtcCppcheckPlugin::addTask(char type, const QString &id, const QString &des
   }
   Utils::FileName file (info);
   QString fullDescription = QLatin1String (Constants::TASK_CATEGORY_NAME) +
-                            ( id.isEmpty() ? QString("") : QLatin1String ("(") + id + QLatin1String (")") ) +
                             QLatin1String (": ") + description;
   TaskInfo taskInfo (line, fullDescription);
   // Search for duplicates (see TaskInfo class description).
